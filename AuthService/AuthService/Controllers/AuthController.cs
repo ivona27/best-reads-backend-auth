@@ -1,8 +1,10 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
+using AuthService.Data;
 using AuthService.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 namespace AuthService.Controllers
@@ -13,10 +15,12 @@ namespace AuthService.Controllers
     {
         public static UserModel user = new UserModel();
         private readonly IConfiguration _configuration;
+        private readonly DataContext _context;
 
-        public AuthController(IConfiguration configuration)
+        public AuthController(IConfiguration configuration, DataContext context)
         {
             _configuration = configuration;
+            _context = context;
         }
 
         [HttpPost("register")]
@@ -28,22 +32,25 @@ namespace AuthService.Controllers
             user.PasswordHash = passwordHash;
             user.PasswordSalt = passwordSalt;
 
-            return Ok(user);
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+            return Ok(await _context.Users.ToListAsync());
         }
 
         [HttpPost("login")]
         public async Task<ActionResult<string>> Login(UserDTO request)
-        { 
-            if(user.UserName != request.UserName)
-            {
-                return BadRequest("User not found.");
-            }
-            if(!VerifyPasswordHash(request.Password, user.PasswordHash, user.PasswordSalt))
+        {
+            var dbuser = _context.Users.AsNoTracking().Where(x => x.UserName == request.UserName).FirstOrDefault();
+            //if (dbuser.UserName != request.UserName)
+            //{
+            //    return BadRequest("User not found.");
+            //}
+            if(!VerifyPasswordHash(request.Password, dbuser.PasswordHash, dbuser.PasswordSalt))
             {
                 return BadRequest("Wrong password.");
             }
 
-            string token = CreateToken(user);
+            string token = CreateToken(dbuser);
             return Ok(token);
         }
 
