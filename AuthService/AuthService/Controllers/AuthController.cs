@@ -41,11 +41,11 @@ namespace AuthService.Controllers
         public async Task<ActionResult<string>> Login(UserDTO request)
         {
             var dbuser = _context.Users.AsNoTracking().Where(x => x.UserName == request.UserName).FirstOrDefault();
-            //if (dbuser.UserName != request.UserName)
-            //{
-            //    return BadRequest("User not found.");
-            //}
-            if(!VerifyPasswordHash(request.Password, dbuser.PasswordHash, dbuser.PasswordSalt))
+            if (dbuser == null)
+            {
+                return BadRequest("User not found.");
+            }
+            if (!VerifyPasswordHash(request.Password, dbuser.PasswordHash, dbuser.PasswordSalt))
             {
                 return BadRequest("Wrong password.");
             }
